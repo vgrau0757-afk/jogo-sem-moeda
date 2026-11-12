@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subway Surfers — Sem Moeda</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; overflow: hidden; }
+        
+        /* Telas */
+        .tela { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
+        .escondida { opacity: 0; pointer-events: none; }
+        
+        #telaInicio { background: rgba(0,0,0,0.8); z-index: 100; }
+        h1 { color: #00f5d4; font-size: 3rem; margin-bottom: 2rem; text-shadow: 0 0 20px #00f5d4; }
+        input { padding: 15px 25px; font-size: 1.2rem; border-radius: 10px; border: 3px solid #00f5d4; background: #16213e; color: white; margin-bottom: 1.5rem; text-align: center; width: 300px; }
+        button { padding: 15px 40px; font-size: 1.2rem; background: linear-gradient(90deg, #00f5d4, #00bb9e); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; transition: transform 0.2s; }
+        button:hover { transform: scale(1.05); }
+        
+        /* HUD do Jogo */
+        .hud { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; z-index: 50; }
+        .caixa-info { background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; color: white; border: 2px solid #00f5d4; }
+        .cronometro { font-size: 1.5rem; font-weight: bold; color: #ffd60a; }
+        .nome-jogador { font-size: 1.2rem; color: #00f5d4; }
+        
+        /* Área do Jogo */
+        #areaJogo { position: relative; width: 100%; height: 100vh; overflow: hidden; background: linear-gradient(to bottom, #87ceeb, #e0f6ff); }
+        
+        /* Trilhos */
+        .trilho { position: absolute; bottom: 0; width: 33.33%; height: 100%; background: repeating-linear-gradient(0deg, #8b7355 0px, #8b7355 40px, #a08060 40px, #a08060 80px); }
+        .trilho:nth-child(1) { left: 0; }
+        .trilho:nth-child(2) { left: 33.33%; }
+        .trilho:nth-child(3) { left: 66.66%; }
+        
+        /* Jogador */
+        #jogador { position: absolute; bottom: 60px; width: 50px; height: 70px; background: #ff595e; border-radius: 8px; z-index: 10; transition: left 0.15s ease-out; box-shadow: 0 0 15px rgba(255,89,94,0.5); }
+        #jogador::before { content: ''; position: absolute; top: -20px; left: 10px; width: 30px; height: 30px; background: #ffd60a; border-radius: 50%; }
+        
+        /* Obstáculos e Moedas */
+        .obstaculo { position: absolute; width: 60px; height: 60px; background: #333; border-radius: 4px; }
+        .moeda { position: absolute; width: 30px; height: 30px; background: #ffd60a; border-radius: 50%; box-shadow: 0 0 10px #ffd60a; animation: girar 1s linear infinite; }
+        @keyframes girar { 0% { transform: scaleX(1); } 50% { transform: scaleX(0.2); } 100% { transform: scaleX(1); } }
+        
+        /* Tabela de Classificação */
+        #tabelaTela { background: rgba(0,0,0,0.9); z-index: 80; }
+        h2 { color: #00f5d4; font-size: 2rem; margin-bottom: 1.5rem; }
+        table { border-collapse: collapse; width: 400px; background: #16213e; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px 20px; text-align: left; color: white; border-bottom: 1px solid #333; }
+        th { background: #00f5d4; color: #000; font-weight: bold; }
+        tr:hover { background: #1a2c47; }
+        .btn-tabela { margin: 10px; padding: 10px 25px; font-size: 1rem; }
+        
+        /* Controles Mobile */
+        .controles { position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; gap: 20px; z-index: 60; }
+        .btn-controle { width: 70px; height: 70px; font-size: 2rem; padding: 0; background: rgba(0,245,212,0.8); }
+    </style>
+</head>
+<body>
+
+    <!-- Tela de Início -->
+    <div id="telaInicio" class="tela">
+        <h1>🚇 Subway Surfers<br><small style="font-size:1.5rem">Modo: Sem Moeda!</small></h1>
+        <input type="text" id="campoNome" placeholder="Digite seu apelido" maxlength="15">
+        <button onclick="iniciarJogo()">🎮 Começar a Corrida!</button>
+        <br>
+        <button class="btn-tabela" onclick="mostrarTabela()">🏆 Ver Ranking</button>
+    </div>
+
+    <!-- Tabela de Classificação -->
+    <div id="tabelaTela" class="tela escondida">
+        <h2>🏆 Ranking — Quem fica MAIS TEMPO sem pegar moeda!</h2>
+        <table id="tabelaRanking">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Jogador</th>
+                    <th>Tempo Sem Moeda</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+        <br>
+        <button class="btn-tabela" onclick="esconderTabela()">⬅ Voltar</button>
+    </div>
+
+    <!-- Tela do Jogo -->
+    <div id="telaJogo" class="tela escondida">
+        <div class="hud">
+            <div class="caixa-info nome-jogador">Jogador: <span id="nomeExibicao">---</span></div>
+            <div class="caixa-info cronometro">⏱ Sem Moeda: <span id="tempo">0.0</span>s</div>
+            <div class="caixa-info">🏆 Recorde: <span id="recorde">0.0</span>s</div>
+        </div>
+
+        <div id="areaJogo">
+            <div class="trilho"></div>
+            <div class="trilho"></div>
+            <div class="trilho"></div>
+            <div id="jogador"></div>
+        </div>
+
+        <div class="controles">
+            <button class="btn-controle" onclick="moverEsquerda()">⬅</button>
+            <button class="btn-controle" onclick="moverDireita()">➡</button>
+        </div>
+    </div>
+
+<script>
+// Variáveis do jogo
+let nomeJogador = "";
+let trilhoAtual = 1; // 0=esquerda, 1=meio, 2=direita
+let posicoesTrilhos = [window.innerWidth * 0.16, window.innerWidth * 0.47, window.innerWidth * 0.78];
+let tempoSemMoeda = 0;
+let cronometro;
+let jogoRodando = false;
+let recordeAtual = 0;
+let entidades = [];
+let velocidade = 5;
+let ultimoTempo = 0;
+let ranking = JSON.parse(localStorage.getItem('rankingSemMoeda')) || [];
+
+// Elementos
+const jogador = document.getElementById('jogador');
+const areaJogo = document.getElementById('areaJogo');
+const campoNome = document.getElementById('campoNome');
+const tempoEl = document.getElementById('tempo');
+const nomeExibicao = document.getElementById('nomeExibicao');
+const recordeEl = document.getElementById('recorde');
+const telaInicio = document.getElementById('telaInicio');
+const telaJogo = document.getElementById('telaJogo');
+const tabelaTela = document.getElementById('tabelaTela');
+
+// Inicializar posição do jogador
+function atualizarPosicaoJogador() {
+    jogador.style.left = (posicoesTrilhos[trilhoAtual] - 25) + 'px';
+}
+
+// Atualizar tabela de classificação
+function atualizarTabela() {
+    const corpoTabela = document.getElementById('corpoTabela');
+    corpoTabela.innerHTML = '';
+    ranking.sort((a, b) => b.tempo - a.tempo).slice(0, 10).forEach((item, idx) => {
+        const linha = document.createElement('tr');
+        linha.innerHTML = `
+            <td><strong>${idx + 1}º</strong></td>
+            <td>${item.nome}</td>
+            <td>${item.tempo.toFixed(1)}s</td>
+        `;
+        corpoTabela.appendChild(linha);
+    });
+}
+
+function mostrarTabela() {
+    atualizarTabela();
+    tabelaTela.classList.remove('escondida');
+    telaInicio.classList.add('escondida');
+}
+
+function esconderTabela() {
+    tabelaTela.classList.add('escondida');
+    telaInicio.classList.remove('escondida');
+}
+
+// Salvar no ranking
+function salvarNoRanking(nome, tempo) {
+    ranking.push({ nome: nome, tempo: tempo });
+    ranking.sort((a, b) => b.tempo - a.tempo);
+    ranking = ranking.slice(0, 20);
+    localStorage.setItem('rankingSemMoeda', JSON.stringify(ranking));
+}
+
+// Iniciar jogo
+function iniciarJogo() {
+    nomeJogador = campoNome.value.trim() || "Anônimo";
+    nomeExibicao.textContent = nomeJogador;
+    
+    // Resetar variáveis
+    tempoSemMoeda = 0;
+    velocidade = 5;
+    trilhoAtual = 1;
+    recordeAtual = 0;
+    recordeEl.textContent = "0.0";
+    tempoEl.textContent = "0.0";
+    
+    // Limpar entidades antigas
+    entidades.forEach(e => e.elemento.remove());
+    entidades = [];
+    
+    atualizarPosicaoJogador();
+    
+    // Trocar telas
+    telaInicio.classList.add('escondida');
+    telaJogo.classList.remove('escondida');
+    
+    jogoRodando = true;
+    ultimoTempo = performance.now();
+    
+    // Iniciar cronômetro
+    cronometro = setInterval(() => {
+        if (jogoRodando) {
+            tempoSemMoeda += 0.1;
+            tempoEl.textContent = tempoSemMoeda.toFixed(1);
+            if (tempoSemMoeda > recordeAtual) {
+                recordeAtual = tempoSemMoeda;
+                recordeEl.textContent = recordeAtual.toFixed(1);
+            }
+        }
+    }, 100);
+    
+    // Iniciar loop do jogo
+    requestAnimationFrame(loopJogo);
+}
+
+// Movimento
+function moverEsquerda() {
+    if (trilhoAtual > 0) trilhoAtual--;
+    atualizarPosicaoJogador();
+}
+function moverDireita() {
+    if (trilhoAtual < 2) trilhoAtual++;
+    atualizarPosicaoJogador();
+}
+
+// Teclado
+document.addEventListener('keydown', (e) => {
+    if (!jogoRodando) return;
+    if (e.key === 'ArrowLeft' || e.key === 'a') moverEsquerda();
+    if (e.key === 'ArrowRight' || e.key === 'd') moverDireita();
+});
+
+// Criar entidade
+function criarEntidade() {
+    const trilho = Math.floor(Math.random() * 3);
+    const eMoeda = Math.random() > 0.4; // 60% de chance de ser moeda
+    
+    const elemento = document.createElement('div');
+    elemento.className = eMoeda ? 'moeda' : 'obstaculo';
+    elemento.style.left = (posicoesTrilhos[trilho] - (eMoeda ? 15 : 30)) + 'px';
+    elemento.style.top = '-60px';
+    
+    areaJogo.appendChild(elemento);
+    entidades.push({
+        elemento: elemento,
+        trilho: trilho,
+        eMoeda: eMoeda,
+        y: -60
+    });
+}
+
+// Loop principal
+function loopJogo(timestamp) {
+    if (!jogoRodando) return;
+    
+    const delta = timestamp - ultimoTempo;
+    ultimoTempo = timestamp;
+    
+    // Criar entidades periodicamente
+    if (Math.random() < 0.03) criarEntidade();
+    
+    // Mover entidades
+    for (let i = entidades.length - 1; i >= 0; i--) {
+        const ent = entidades[i];
+        ent.y += velocidade;
+        ent.elemento.style.top = ent.y + 'px';
+        
+        // Colisão
+        if (ent.y > window.innerHeight - 140 && ent.y < window.innerHeight - 60) {
+            if (ent.trilho === trilhoAtual) {
+                if (ent.eMoeda) {
+                    // PEGOU MOEDA — FIM DA RODADA
+                    fimDeJogo();
+                    return;
+                } else {
+                    // BATEU EM OBSTÁCULO — não faz nada por enquanto
+                }
+            }
+        }
+        
+        // Remover entidades que saíram da tela
+        if (ent.y > window.innerHeight) {
+            ent.elemento.remove();
+            entidades.splice(i, 1);
+        }
+    }
+    
+    // Aumentar velocidade gradualmente
+    velocidade += 0.003;
+    
+    requestAnimationFrame(loopJogo);
+}
+
+// Fim de jogo
+function fimDeJogo() {
+    jogoRodando = false;
+    clearInterval(cronometro);
+    
+    // Salvar no ranking
+    if (tempoSemMoeda > 0.5) {
+        salvarNoRanking(nomeJogador, tempoSemMoeda);
+    }
+    
+    alert(`💥 Você pegou uma moeda!\n⏱ Tempo sem pegar moeda: ${tempoSemMoeda.toFixed(1)} segundos\n\nObrigado por jogar, ${nomeJogador}!`);
+    
+    // Voltar para tela inicial
+    telaJogo.classList.add('escondida');
+    telaInicio.classList.remove('escondida');
+    atualizarTabela();
+}
+
+// Ajustar posições ao redimensionar janela
+window.addEventListener('resize', () => {
+    posicoesTrilhos = [window.innerWidth * 0.16, window.innerWidth * 0.47, window.innerWidth * 0.78];
+    atualizarPosicaoJogador();
+});
+
+// Atualizar tabela ao carregar
+atualizarTabela();
+</script>
+</body>
+</html>
